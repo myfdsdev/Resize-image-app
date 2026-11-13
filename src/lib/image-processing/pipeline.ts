@@ -1,4 +1,5 @@
 import { hasEdits, sourceTransform } from "./edits";
+import { applyFilters, isNeutral } from "./filters";
 import { computeLayout, needsBackgroundFill, resolveOutputMime } from "./geometry";
 import { searchQuality } from "./target-size";
 import type { EncodableMime, ImageEdits, ProcessJob, ProcessResult } from "./types";
@@ -197,6 +198,12 @@ export async function processImage(job: ProcessJob, webpSupported: boolean): Pro
       Math.ceil(layout.drawHeight),
     );
     ctx.drawImage(src, 0, 0, w, h, layout.drawX, layout.drawY, layout.drawWidth, layout.drawHeight);
+
+    if (job.filters && !isNeutral(job.filters)) {
+      const img = ctx.getImageData(0, 0, layout.canvasWidth, layout.canvasHeight);
+      applyFilters(img.data, job.filters);
+      ctx.putImageData(img, 0, 0);
+    }
 
     if (job.watermark?.enabled) {
       await drawWatermark(ctx, layout.canvasWidth, layout.canvasHeight, job.watermark);

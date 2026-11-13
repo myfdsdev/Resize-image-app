@@ -1,6 +1,6 @@
 "use client";
 
-import type { AiToolId } from "./ai-tools";
+import type { AiParams, AiToolId } from "./ai-tools";
 import { decodeImage } from "./image-processing/pipeline";
 
 const MAX_UPLOAD = 3.8 * 1024 * 1024;
@@ -48,12 +48,14 @@ export async function runAiJob(
   mask: Blob | undefined,
   onPhase: (p: AiPhase) => void,
   signal?: AbortSignal,
+  params?: AiParams,
 ): Promise<{ url: string; width?: number; height?: number }> {
   onPhase("uploading");
   const form = new FormData();
   form.set("tool", tool);
   form.set("image", image, image.type === "image/png" ? "image.png" : "image.jpg");
   if (mask) form.set("mask", mask, "mask.png");
+  if (params && Object.keys(params).length) form.set("params", JSON.stringify(params));
   const res = await fetch("/api/ai/submit", { method: "POST", body: form, signal });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error || "Could not start the AI job"), { code: data.code });

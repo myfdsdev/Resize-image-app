@@ -57,6 +57,7 @@ export interface ProcessJob {
   encode: EncodeOptions;
   edits?: ImageEdits;
   watermark?: import("./watermark").WatermarkJob;
+  filters?: import("./filters").FilterSettings;
 }
 
 export interface ProcessResult {

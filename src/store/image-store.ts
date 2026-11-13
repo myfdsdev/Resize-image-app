@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { CUSTOM_PREFIX, type CustomPreset } from "@/lib/custom-presets";
 import { NO_EDITS } from "@/lib/image-processing/edits";
 import type { FitMode, ImageEdits, OutputFormat, ResizeTarget } from "@/lib/image-processing/types";
+import { DEFAULT_FILTERS, type FilterSettings } from "@/lib/image-processing/filters";
 import { DEFAULT_WATERMARK, type WatermarkSettings } from "@/lib/image-processing/watermark";
 import { PRESET_BY_ID } from "@/lib/presets";
 import { DEFAULT_RENAME, type RenameOptions } from "@/lib/rename";
@@ -73,6 +74,7 @@ export interface Settings {
   targetKB: number | null;
   watermark: WatermarkSettings;
   rename: RenameOptions;
+  filters: FilterSettings;
 }
 
 export interface WatermarkLogo {
@@ -97,11 +99,13 @@ export const DEFAULT_SETTINGS: Settings = {
   targetKB: null,
   watermark: DEFAULT_WATERMARK,
   rename: DEFAULT_RENAME,
+  filters: DEFAULT_FILTERS,
 };
 
-export type PartialSettings = Omit<Partial<Settings>, "watermark" | "rename"> & {
+export type PartialSettings = Omit<Partial<Settings>, "watermark" | "rename" | "filters"> & {
   watermark?: Partial<WatermarkSettings>;
   rename?: Partial<RenameOptions>;
+  filters?: Partial<FilterSettings>;
 };
 
 /** Saved (partial) settings merged over the built-in defaults. */
@@ -111,6 +115,7 @@ export function mergeSettings(d: PartialSettings | null | undefined): Settings {
     ...(d ?? {}),
     watermark: { ...DEFAULT_WATERMARK, ...(d?.watermark ?? {}) },
     rename: { ...DEFAULT_RENAME, ...(d?.rename ?? {}) },
+    filters: { ...DEFAULT_FILTERS, ...(d?.filters ?? {}) },
   };
 }
 

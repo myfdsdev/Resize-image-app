@@ -4,6 +4,7 @@ import { AlertCircle, Check, Crop, Loader2, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { formatBytes } from "@/lib/filenames";
 import { hasEdits } from "@/lib/image-processing/edits";
+import { cssFilter } from "@/lib/image-processing/filters";
 import type { ImageEdits } from "@/lib/image-processing/types";
 import { useImageStore, type ImageItem } from "@/store/image-store";
 
@@ -58,6 +59,7 @@ export const ImageCard = memo(function ImageCard({
   const toggleSelect = useImageStore((s) => s.toggleSelect);
   const removeItems = useImageStore((s) => s.removeItems);
   const running = useImageStore((s) => s.running);
+  const filters = useImageStore((s) => s.settings.filters);
 
   const outSize = item.outputs.reduce((n, o) => n + o.blob.size, 0);
   const saved = item.outputs.length === 1 ? 1 - outSize / item.size : null;
@@ -83,7 +85,7 @@ export const ImageCard = memo(function ImageCard({
             alt=""
             decoding="async"
             className="h-full w-full object-contain transition-transform"
-            style={{ transform: editTransform(item.edits) }}
+            style={{ transform: editTransform(item.edits), filter: cssFilter(filters) }}
           />
         ) : item.converting ? (
           <span className="flex h-full w-full flex-col items-center justify-center gap-2 text-[11px] text-faint">

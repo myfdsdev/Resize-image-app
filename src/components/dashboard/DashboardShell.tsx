@@ -3,10 +3,12 @@
 import {
   Bookmark,
   Crop,
+  FileText,
   History,
   Images,
   KeyRound,
   LayoutDashboard,
+  LayoutGrid,
   LogIn,
   Menu,
   Settings,
@@ -29,6 +31,8 @@ const NAV: { title?: string; items: NavItem[] }[] = [
       { href: "/app/overview", label: "Overview", icon: LayoutDashboard },
       { href: "/app", label: "Bulk Editor", icon: Images, badge: "images" },
       { href: "/app/crop", label: "Crop & Rotate", icon: Crop },
+      { href: "/app/collage", label: "Collage", icon: LayoutGrid },
+      { href: "/app/pdf", label: "Images to PDF", icon: FileText },
     ],
   },
   {

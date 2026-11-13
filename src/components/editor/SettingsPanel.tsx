@@ -4,7 +4,7 @@ import { Check, ChevronDown, Link2, Link2Off, RotateCcw, Save } from "lucide-rea
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useDashboard } from "@/components/dashboard/DashboardContext";
-import { RenameSection, TargetSizeSection, WatermarkSection } from "./ExtraSettings";
+import { FiltersSection, RenameSection, TargetSizeSection, WatermarkSection } from "./ExtraSettings";
 import { saveDefaults } from "@/lib/defaults-client";
 import { detectFormatSupport } from "@/lib/format-support";
 import type { OutputFormat } from "@/lib/image-processing/types";
@@ -426,6 +426,7 @@ export function SettingsPanel() {
         </p>
       </Section>
 
+      <FiltersSection />
       <TargetSizeSection />
       <WatermarkSection />
       <RenameSection />

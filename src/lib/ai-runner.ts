@@ -1,7 +1,7 @@
 import "server-only";
 import { ApiError, createFalClient } from "@fal-ai/client";
 import { aiMockEnabled } from "./ai-keys";
-import { AI_TOOLS, buildAiInput, friendlyAiError, type AiToolId } from "./ai-tools";
+import { AI_TOOLS, buildAiInput, friendlyAiError, type AiParams, type AiToolId } from "./ai-tools";
 
 export type JobState =
   | { status: "queued" | "running" }
@@ -47,7 +47,13 @@ function mockStatus(id: string): JobState {
 // ---------- Real ----------
 
 /** Uploads the image (and mask) to fal storage with a short lifetime, then queues the job. */
-export async function submitAiJob(key: string, tool: AiToolId, image: Blob, mask?: Blob): Promise<{ requestId: string } | { error: string }> {
+export async function submitAiJob(
+  key: string,
+  tool: AiToolId,
+  image: Blob,
+  mask?: Blob,
+  params: AiParams = {},
+): Promise<{ requestId: string } | { error: string }> {
   if (aiMockEnabled()) return { requestId: await mockSubmit(tool, image) };
   const fal = client(key);
   try {
@@ -55,7 +61,7 @@ export async function submitAiJob(key: string, tool: AiToolId, image: Blob, mask
     const imageUrl = await fal.storage.upload(image, lifecycle);
     const maskUrl = mask ? await fal.storage.upload(mask, lifecycle) : undefined;
     const { request_id } = await fal.queue.submit(AI_TOOLS[tool].endpoint, {
-      input: buildAiInput(tool, imageUrl, maskUrl),
+      input: buildAiInput(tool, imageUrl, maskUrl, params),
     });
     return { requestId: request_id };
   } catch (e) {
@@ -72,9 +78,12 @@ export async function getAiJob(key: string, tool: AiToolId, requestId: string): 
     if (status.status === "IN_QUEUE") return { status: "queued" };
     if (status.status === "IN_PROGRESS") return { status: "running" };
     const result = await fal.queue.result(endpoint, { requestId });
-    const data = result.data as { image?: { url?: string; width?: number; height?: number } };
-    if (!data?.image?.url) return { status: "error", error: "The AI returned no image." };
-    return { status: "done", url: data.image.url, width: data.image.width, height: data.image.height };
+    type Img = { url?: string; width?: number; height?: number };
+    const data = result.data as { image?: Img; images?: Img[]; has_nsfw_concepts?: boolean[] };
+    if (data?.has_nsfw_concepts?.[0]) return { status: "error", error: "The result was blocked by the safety filter." };
+    const img = data?.image ?? data?.images?.[0];
+    if (!img?.url) return { status: "error", error: "The AI returned no image." };
+    return { status: "done", url: img.url, width: img.width, height: img.height };
   } catch (e) {
     return { status: "error", error: toFriendly(e) };
   }

@@ -1,5 +1,7 @@
 /** AI tools that run on fal.ai with the user's own key (shared by client and server). */
-export type AiToolId = "remove-bg" | "erase" | "upscale";
+import { z } from "zod";
+
+export type AiToolId = "remove-bg" | "erase" | "upscale" | "expand" | "edit";
 
 export interface AiTool {
   id: AiToolId;
@@ -36,6 +38,26 @@ export const AI_TOOLS: Record<AiToolId, AiTool> = {
     costHint: "billed per image by fal.ai",
     sendAs: "image/jpeg",
   },
+  expand: {
+    id: "expand",
+    name: "Background extend",
+    description: "Fit any size without cropping — AI paints the missing background.",
+    endpoint: "fal-ai/bria/expand",
+    needsMask: false,
+    maxSide: 1536,
+    costHint: "about $0.04 per image",
+    sendAs: "image/jpeg",
+  },
+  edit: {
+    id: "edit",
+    name: "Edit with a prompt",
+    description: "Describe a change, like “make the background white”.",
+    endpoint: "fal-ai/flux-pro/kontext",
+    needsMask: false,
+    maxSide: 1536,
+    costHint: "about $0.04 per image",
+    sendAs: "image/jpeg",
+  },
   upscale: {
     id: "upscale",
     name: "AI upscale 2×",
@@ -54,9 +76,63 @@ export function isAiTool(id: unknown): id is AiToolId {
   return typeof id === "string" && Object.prototype.hasOwnProperty.call(AI_TOOLS, id);
 }
 
+export const EXPAND_RATIOS = ["1:1", "4:5", "3:4", "2:3", "9:16", "16:9", "3:2", "4:3", "5:4"] as const;
+export type ExpandRatio = (typeof EXPAND_RATIOS)[number];
+
+/** Extra options per tool, validated on the server. */
+export const aiParamsSchema = z
+  .object({
+    ratio: z.enum(EXPAND_RATIOS).optional(),
+    prompt: z.string().trim().max(500).optional(),
+    imageWidth: z.number().int().min(16).max(4096).optional(),
+    imageHeight: z.number().int().min(16).max(4096).optional(),
+  })
+  .strict();
+export type AiParams = z.infer<typeof aiParamsSchema>;
+
+/** Returns an error message when the params do not fit the tool. */
+export function checkAiParams(tool: AiToolId, p: AiParams): string | null {
+  if (tool === "expand") {
+    if (!p.ratio) return "Choose a size to extend to";
+    if (!p.imageWidth || !p.imageHeight) return "Missing image size";
+    const c = expandCanvas(p.imageWidth, p.imageHeight, p.ratio);
+    if (c.canvas[0] === p.imageWidth && c.canvas[1] === p.imageHeight) return "The image already has this shape";
+  }
+  if (tool === "edit" && (!p.prompt || p.prompt.length < 3)) return "Describe the change you want";
+  return null;
+}
+
+/**
+ * Canvas for "extend": keep the whole image, grow one side to reach the ratio,
+ * and center the original. Never crops.
+ */
+export function expandCanvas(w: number, h: number, ratio: ExpandRatio) {
+  const [rw, rh] = ratio.split(":").map(Number);
+  const r = rw / rh;
+  let W = w;
+  let H = h;
+  if (w / h < r) W = Math.round(h * r);
+  else H = Math.round(w / r);
+  return { canvas: [W, H] as [number, number], location: [Math.round((W - w) / 2), Math.round((H - h) / 2)] as [number, number] };
+}
+
 /** Input object for the fal endpoint. */
-export function buildAiInput(tool: AiToolId, imageUrl: string, maskUrl?: string): Record<string, unknown> {
+export function buildAiInput(tool: AiToolId, imageUrl: string, maskUrl?: string, params: AiParams = {}): Record<string, unknown> {
   switch (tool) {
+    case "expand": {
+      const w = params.imageWidth!;
+      const h = params.imageHeight!;
+      const { canvas, location } = expandCanvas(w, h, params.ratio!);
+      return {
+        image_url: imageUrl,
+        canvas_size: canvas,
+        original_image_size: [w, h],
+        original_image_location: location,
+        ...(params.prompt ? { prompt: params.prompt } : {}),
+      };
+    }
+    case "edit":
+      return { image_url: imageUrl, prompt: params.prompt, output_format: "jpeg", num_images: 1 };
     case "remove-bg":
       return { image_url: imageUrl };
     case "erase":

@@ -2,6 +2,7 @@
 
 import { ImagePlus, X } from "lucide-react";
 import { useRef } from "react";
+import { DEFAULT_FILTERS, FILTER_EFFECTS, isNeutral, type FilterSettings } from "@/lib/image-processing/filters";
 import { WATERMARK_POSITIONS, type WatermarkSettings } from "@/lib/image-processing/watermark";
 import { RENAME_TOKENS, renderName } from "@/lib/rename";
 import { useImageStore } from "@/store/image-store";
@@ -296,6 +297,46 @@ export function RenameSection() {
       <p className="truncate text-xs text-faint">
         Example: <span className="font-mono text-muted" data-testid="rename-example">{example}.jpg</span>
       </p>
+    </Section>
+  );
+}
+
+export function FiltersSection() {
+  const f = useImageStore((s) => s.settings.filters);
+  const updateSettings = useImageStore((s) => s.updateSettings);
+  const set = (patch: Partial<FilterSettings>) => updateSettings({ filters: { ...f, ...patch } });
+
+  return (
+    <Section
+      title="Adjust & filters"
+      right={
+        !isNeutral(f) ? (
+          <button type="button" onClick={() => updateSettings({ filters: DEFAULT_FILTERS })} className="text-xs text-faint hover:text-fg">
+            Reset
+          </button>
+        ) : undefined
+      }
+    >
+      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Filter effect">
+        {FILTER_EFFECTS.map((e) => (
+          <button
+            key={e.id}
+            type="button"
+            role="radio"
+            aria-checked={f.effect === e.id}
+            onClick={() => set({ effect: e.id })}
+            className={`h-8 rounded-md text-xs font-medium ${
+              f.effect === e.id ? "bg-white text-black" : "border border-line-strong text-muted hover:text-fg"
+            }`}
+          >
+            {e.label}
+          </button>
+        ))}
+      </div>
+      <Slider label="Brightness" value={f.brightness} min={-100} max={100} unit="" onChange={(v) => set({ brightness: v })} />
+      <Slider label="Contrast" value={f.contrast} min={-100} max={100} unit="" onChange={(v) => set({ contrast: v })} />
+      <Slider label="Saturation" value={f.saturation} min={-100} max={100} unit="" onChange={(v) => set({ saturation: v })} />
+      <p className="text-xs text-faint">Thumbnails show a quick preview. Exported files use the exact filter.</p>
     </Section>
   );
 }

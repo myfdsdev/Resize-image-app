@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/auth";
 import { getFalKey } from "@/lib/ai-keys";
 import { submitAiJob } from "@/lib/ai-runner";
-import { AI_TOOLS, isAiTool } from "@/lib/ai-tools";
+import { AI_TOOLS, aiParamsSchema, checkAiParams, isAiTool } from "@/lib/ai-tools";
 import { createRateLimiter } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -37,6 +37,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Paint the area to remove first" }, { status: 400 });
   }
 
+  let params = {};
+  const rawParams = form.get("params");
+  if (typeof rawParams === "string" && rawParams) {
+    let json: unknown;
+    try {
+      json = JSON.parse(rawParams);
+    } catch {
+      return NextResponse.json({ error: "Invalid options" }, { status: 400 });
+    }
+    const parsed = aiParamsSchema.safeParse(json);
+    if (!parsed.success) return NextResponse.json({ error: "Invalid options" }, { status: 400 });
+    params = parsed.data;
+  }
+  const paramError = checkAiParams(tool, params);
+  if (paramError) return NextResponse.json({ error: paramError }, { status: 400 });
+
   let key: string | null;
   try {
     key = await getFalKey(id);
@@ -45,7 +61,7 @@ export async function POST(req: Request) {
   }
   if (!key) return NextResponse.json({ error: "Add your fal.ai API key first", code: "NO_KEY" }, { status: 400 });
 
-  const res = await submitAiJob(key, tool, image, AI_TOOLS[tool].needsMask ? (mask as File) : undefined);
+  const res = await submitAiJob(key, tool, image, AI_TOOLS[tool].needsMask ? (mask as File) : undefined, params);
   if ("error" in res) return NextResponse.json({ error: res.error }, { status: 502 });
   return NextResponse.json({ requestId: res.requestId });
 }

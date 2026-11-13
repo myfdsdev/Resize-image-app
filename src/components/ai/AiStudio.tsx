@@ -1,6 +1,22 @@
 "use client";
 
-import { Brush, Download, Eraser, ImagePlus, KeyRound, Loader2, LogIn, Plus, Repeat, Sparkles, Undo2, Wand2, X } from "lucide-react";
+import {
+  Brush,
+  Download,
+  Eraser,
+  Expand,
+  ImagePlus,
+  KeyRound,
+  Loader2,
+  LogIn,
+  MessageSquareText,
+  Plus,
+  Repeat,
+  Sparkles,
+  Undo2,
+  Wand2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDashboard } from "@/components/dashboard/DashboardContext";
@@ -9,14 +25,26 @@ import { BeforeAfter } from "@/components/preview/BeforeAfter";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { addFilesToWorkspace } from "@/components/upload/DropZone";
 import { fetchAiResult, prepareForAi, renderMask, runAiJob, type AiPhase, type MaskStroke } from "@/lib/ai-client";
-import { AI_TOOLS, AI_TOOL_IDS, type AiToolId } from "@/lib/ai-tools";
+import { AI_TOOLS, AI_TOOL_IDS, EXPAND_RATIOS, type AiParams, type AiToolId, type ExpandRatio } from "@/lib/ai-tools";
 import { triggerDownload } from "@/lib/download";
 import { baseName, formatBytes } from "@/lib/filenames";
 import { useImageStore } from "@/store/image-store";
 
 const CONSENT_KEY = "pixforge.ai.consent.v1";
-const TOOL_ICON: Record<AiToolId, typeof Wand2> = { "remove-bg": Wand2, erase: Eraser, upscale: Sparkles };
-const SUFFIX: Record<AiToolId, string> = { "remove-bg": "nobg", erase: "erased", upscale: "2x" };
+const TOOL_ICON: Record<AiToolId, typeof Wand2> = {
+  "remove-bg": Wand2,
+  erase: Eraser,
+  expand: Expand,
+  edit: MessageSquareText,
+  upscale: Sparkles,
+};
+const SUFFIX: Record<AiToolId, string> = { "remove-bg": "nobg", erase: "erased", expand: "extended", edit: "edited", upscale: "2x" };
+const PROMPT_EXAMPLES = [
+  "Make the background pure white",
+  "Remove the text from the image",
+  "Change the season to winter",
+  "Turn this into a watercolor painting",
+];
 
 interface Source {
   id: string;
@@ -41,6 +69,8 @@ export function AiStudio() {
   const [source, setSource] = useState<Source | null>(null);
   const [strokes, setStrokes] = useState<MaskStroke[]>([]);
   const [brush, setBrush] = useState(0.05);
+  const [ratio, setRatio] = useState<ExpandRatio>("1:1");
+  const [prompt, setPrompt] = useState("");
   const [consent, setConsent] = useState(false);
   const [phase, setPhase] = useState<AiPhase | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +122,9 @@ export function AiStudio() {
 
   const meta = AI_TOOLS[tool];
   const running = phase !== null;
-  const canRun = !!source && consent && !running && (!meta.needsMask || strokes.length > 0);
+  const paramsReady =
+    (!meta.needsMask || strokes.length > 0) && (tool !== "edit" || prompt.trim().length >= 3);
+  const canRun = !!source && consent && !running && paramsReady;
 
   async function run() {
     if (!source) return;
@@ -104,7 +136,13 @@ export function AiStudio() {
     try {
       const prepared = await prepareForAi(source.file, meta.maxSide, meta.sendAs);
       const mask = meta.needsMask ? await renderMask(strokes, prepared.width, prepared.height) : undefined;
-      const out = await runAiJob(tool, prepared.blob, mask, setPhase, ctrl.signal);
+      const params: AiParams =
+        tool === "expand"
+          ? { ratio, imageWidth: prepared.width, imageHeight: prepared.height, ...(prompt.trim() ? { prompt: prompt.trim() } : {}) }
+          : tool === "edit"
+            ? { prompt: prompt.trim() }
+            : {};
+      const out = await runAiJob(tool, prepared.blob, mask, setPhase, ctrl.signal, params);
       const blob = await fetchAiResult(out.url);
       const bmp = await createImageBitmap(blob);
       const res = { blob, url: ownUrl(blob), width: bmp.width, height: bmp.height, tool };
@@ -161,7 +199,7 @@ export function AiStudio() {
   return (
     <Shell>
       {/* Tool picker */}
-      <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="AI tool">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" role="radiogroup" aria-label="AI tool">
         {AI_TOOL_IDS.map((id) => {
           const t = AI_TOOLS[id];
           const Icon = TOOL_ICON[id];
@@ -174,6 +212,7 @@ export function AiStudio() {
               aria-checked={on}
               disabled={running}
               onClick={() => {
+                if (id !== tool && (id === "edit" || tool === "edit")) setPrompt("");
                 setTool(id);
                 setResult(null);
                 setError(null);
@@ -335,6 +374,64 @@ export function AiStudio() {
             </section>
           )}
 
+          {tool === "expand" && (
+            <section className="space-y-3 rounded-2xl border border-line bg-surface-2 p-4" data-testid="expand-options">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-faint">Extend to</h3>
+              <div className="grid grid-cols-3 gap-1.5">
+                {EXPAND_RATIOS.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRatio(r)}
+                    aria-pressed={ratio === r}
+                    className={`h-8 rounded-md text-xs font-medium ${
+                      ratio === r ? "bg-white text-black" : "border border-line-strong text-muted hover:text-fg"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={prompt}
+                maxLength={200}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Optional: describe the new background"
+                aria-label="Background description"
+                className="h-9 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm outline-none placeholder:text-faint focus:border-white"
+              />
+              <p className="text-xs text-faint">The whole image is kept; only the empty area is filled in.</p>
+            </section>
+          )}
+
+          {tool === "edit" && (
+            <section className="space-y-3 rounded-2xl border border-line bg-surface-2 p-4" data-testid="edit-options">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-faint">What should change?</h3>
+              <textarea
+                value={prompt}
+                maxLength={500}
+                rows={4}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="e.g. Make the background pure white"
+                aria-label="Edit prompt"
+                className="w-full resize-none rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none placeholder:text-faint focus:border-white"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {PROMPT_EXAMPLES.map((ex) => (
+                  <button
+                    key={ex}
+                    type="button"
+                    onClick={() => setPrompt(ex)}
+                    className="rounded-md border border-line-strong px-2 py-1 text-left text-[11px] text-muted hover:text-fg"
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="space-y-3 rounded-2xl border border-line bg-surface-2 p-4">
             <p className="text-sm font-medium">{meta.name}</p>
             <p className="text-xs text-muted">Cost on your fal.ai account: {meta.costHint}.</p>
@@ -367,6 +464,9 @@ export function AiStudio() {
             {!source && <p className="text-xs text-faint">Choose an image first.</p>}
             {source && meta.needsMask && strokes.length === 0 && !result && (
               <p className="text-xs text-faint">Paint the area to remove.</p>
+            )}
+            {source && tool === "edit" && prompt.trim().length < 3 && (
+              <p className="text-xs text-faint">Describe the change first.</p>
             )}
             {result && (
               <button type="button" onClick={() => setResult(null)} className="text-xs text-faint hover:text-fg">
@@ -403,7 +503,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 lg:py-8">
       <PageHeader
         title="AI Tools"
-        description="Remove backgrounds, erase objects and upscale — powered by your own fal.ai key."
+        description="Remove backgrounds, erase objects, extend, edit with words and upscale — powered by your own fal.ai key."
       />
       {children}
     </div>

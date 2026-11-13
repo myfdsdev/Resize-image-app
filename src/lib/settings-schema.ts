@@ -29,6 +29,14 @@ export const defaultsSchema = z
         tile: z.boolean(),
       })
       .partial(),
+    filters: z
+      .object({
+        brightness: z.number().int().min(-100).max(100),
+        contrast: z.number().int().min(-100).max(100),
+        saturation: z.number().int().min(-100).max(100),
+        effect: z.enum(["none", "bw", "sepia", "warm", "cool", "vintage"]),
+      })
+      .partial(),
     rename: z
       .object({
         pattern: z.string().max(80),

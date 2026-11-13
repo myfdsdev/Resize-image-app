@@ -65,6 +65,7 @@ export function useBatchProcessor() {
           encode,
           edits: item.edits,
           watermark,
+          filters: settings.filters,
         });
       });
     }

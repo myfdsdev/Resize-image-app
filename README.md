@@ -10,7 +10,14 @@ Bulk image resizer for every platform. Resize, convert and compress images for I
 - Images are downscaled before sending (2048 px, 1024 px for upscale), uploads to fal expire after 1 hour
 - Results: before/after slider, download, add to Bulk Editor, or chain into another AI tool
 - Consent checkbox before sending any image; clear error messages for bad keys or empty balance
+- Background extend (BRIA Expand): fit any ratio without cropping; AI fills the empty area
+- Edit with a prompt (FLUX.1 Kontext pro): e.g. "make the background pure white"
 - `PIXFORGE_AI_MOCK=1` fake AI for local development (never active in production)
+
+### Version 2: free creative tools (in the browser)
+- Filters: brightness, contrast, saturation and B&W / Sepia / Warm / Cool / Vintage, with live thumbnail preview
+- Collage maker: 9 layouts, 5 sizes (incl. A4), gap, border, rounded corners, background color, JPG/PNG
+- Images to PDF: A4 / Letter / fit-to-image, auto orientation, margins, 3 quality levels (pdf-lib)
 
 ### Phase 3
 - Saved Presets: create your own sizes (account or this browser) and use them next to platform presets
