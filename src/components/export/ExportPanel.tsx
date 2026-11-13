@@ -3,10 +3,12 @@
 import { Download, Loader2, Play, RotateCw, SlidersHorizontal, Square } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { useDashboard } from "@/components/dashboard/DashboardContext";
+import { reportBatch } from "@/lib/defaults-client";
 import { buildZip, triggerDownload, zipFileName } from "@/lib/download";
 import { formatBytes } from "@/lib/filenames";
 import { useBatchProcessor } from "@/hooks/useBatchProcessor";
-import { buildTargets, settingsKey, useImageStore } from "@/store/image-store";
+import { buildTargets, itemKey, useImageStore } from "@/store/image-store";
 
 export function ExportPanel({
   onMessage,
@@ -23,9 +25,9 @@ export function ExportPanel({
   const requestCancel = useImageStore((s) => s.requestCancel);
   const selected = useImageStore((s) => s.selected);
   const { process } = useBatchProcessor();
+  const { loggedIn } = useDashboard();
   const [zipping, setZipping] = useState(false);
 
-  const key = settingsKey(settings);
   const targets = buildTargets(settings);
   const stats = useMemo(() => {
     let done = 0,
@@ -47,7 +49,7 @@ export function ExportPanel({
     return { done, failed, active, outputs, inBytes, outBytes };
   }, [items]);
 
-  const outdated = items.some((i) => i.outputs.length > 0 && i.processedKey !== key);
+  const outdated = items.some((i) => i.outputs.length > 0 && i.processedKey !== itemKey(settings, i));
   const finished = stats.done + stats.failed;
   const total = running ? finished + stats.active : items.length;
   const pct = total ? Math.round((finished / total) * 100) : 0;
@@ -58,6 +60,7 @@ export function ExportPanel({
   const run = async (ids?: string[]) => {
     const res = await process(ids);
     if (!res.ok) onMessage(res.error);
+    else if (loggedIn && res.stats.images > 0) reportBatch(res.stats);
   };
 
   const downloadZip = async () => {

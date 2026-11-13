@@ -1,7 +1,8 @@
 "use client";
 
 import { create } from "zustand";
-import type { FitMode, OutputFormat, ResizeTarget } from "@/lib/image-processing/types";
+import { NO_EDITS } from "@/lib/image-processing/edits";
+import type { FitMode, ImageEdits, OutputFormat, ResizeTarget } from "@/lib/image-processing/types";
 import { PRESET_BY_ID } from "@/lib/presets";
 
 export type ItemStatus = "idle" | "queued" | "processing" | "done" | "error";
@@ -36,6 +37,10 @@ export interface ImageItem {
   height?: number;
   status: ItemStatus;
   error?: string;
+  /** True while an HEIC file is being converted. */
+  converting?: boolean;
+  /** Rotate / flip / crop applied before resizing. */
+  edits: ImageEdits;
   outputs: OutputItem[];
   /** Settings fingerprint used for the current outputs. */
   processedKey?: string;
@@ -112,6 +117,11 @@ export function settingsKey(s: Settings): string {
   return JSON.stringify(s);
 }
 
+/** Fingerprint of everything that affects an item's outputs. */
+export function itemKey(s: Settings, item: Pick<ImageItem, "edits">): string {
+  return settingsKey(s) + "|" + JSON.stringify(item.edits);
+}
+
 interface State {
   items: ImageItem[];
   selected: Set<string>;
@@ -124,6 +134,10 @@ interface State {
   toggleSelect: (id: string) => void;
   selectAll: (on: boolean) => void;
   updateSettings: (patch: Partial<Settings>) => void;
+  /** Replace settings with saved defaults (merged over the built-in defaults). */
+  applyDefaults: (defaults: Partial<Settings>) => void;
+  /** Update edits for one or more images. */
+  editItems: (ids: string[], fn: (e: ImageEdits, item: ImageItem) => ImageEdits) => void;
   resetSettings: () => void;
   patchItem: (id: string, patch: Partial<ImageItem>) => void;
   setThumb: (id: string, thumbUrl: string, width: number, height: number) => void;
@@ -181,6 +195,13 @@ export const useImageStore = create<State>((set, get) => ({
 
   updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
   resetSettings: () => set({ settings: DEFAULT_SETTINGS }),
+  applyDefaults: (defaults) => set({ settings: { ...DEFAULT_SETTINGS, ...defaults } }),
+  editItems: (ids, fn) => {
+    const target = new Set(ids);
+    set((s) => ({
+      items: s.items.map((it) => (target.has(it.id) ? { ...it, edits: fn(it.edits ?? NO_EDITS, it) } : it)),
+    }));
+  },
 
   patchItem: (id, patch) => set((s) => ({ items: s.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) })),
 

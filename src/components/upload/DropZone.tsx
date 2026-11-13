@@ -3,6 +3,8 @@
 import { ImagePlus, Upload } from "lucide-react";
 import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
+import { convertHeic } from "@/lib/heic";
+import { NO_EDITS } from "@/lib/image-processing/edits";
 import { makeThumbnail } from "@/lib/thumbnail";
 import { ACCEPTED_EXT, MAX_FILES, MAX_FILE_SIZE_MB, validateFile } from "@/lib/validation";
 import { useImageStore, type ImageItem } from "@/store/image-store";
@@ -12,6 +14,35 @@ const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `img-${Date.now()}-${++counter}-${Math.random().toString(36).slice(2)}`;
+
+function thumbnail(id: string, file: File, mime: string) {
+  makeThumbnail(file, mime !== "image/jpeg")
+    .then((t) => useImageStore.getState().setThumb(id, t.url, t.width, t.height))
+    .catch(() => useImageStore.getState().patchItem(id, { thumbFailed: true }));
+}
+
+/** iPhone photos: convert to JPEG once, then treat like any other image. */
+async function prepareHeic(item: ImageItem) {
+  try {
+    const jpeg = await convertHeic(item.file);
+    const st = useImageStore.getState();
+    if (!st.items.some((i) => i.id === item.id)) return; // removed meanwhile
+    st.patchItem(item.id, {
+      file: jpeg,
+      mime: "image/jpeg",
+      previewUrl: URL.createObjectURL(jpeg),
+      converting: false,
+    });
+    thumbnail(item.id, jpeg, "image/jpeg");
+  } catch {
+    useImageStore.getState().patchItem(item.id, {
+      converting: false,
+      thumbFailed: true,
+      status: "error",
+      error: "Could not read this HEIC file",
+    });
+  }
+}
 
 export interface Rejection {
   name: string;
@@ -39,23 +70,25 @@ export function DropZone({ compact = false, onRejected }: { compact?: boolean; o
           continue;
         }
         room--;
+        const heic = v.mime === "image/heic";
         accepted.push({
           id: newId(),
           file,
           name: file.name,
           size: file.size,
           mime: v.mime,
-          previewUrl: URL.createObjectURL(file),
+          previewUrl: heic ? "" : URL.createObjectURL(file),
           status: "idle",
+          converting: heic,
+          edits: NO_EDITS,
           outputs: [],
         });
       }
       if (accepted.length) {
         addItems(accepted);
         for (const it of accepted) {
-          makeThumbnail(it.file, it.mime !== "image/jpeg")
-            .then((t) => useImageStore.getState().setThumb(it.id, t.url, t.width, t.height))
-            .catch(() => useImageStore.getState().patchItem(it.id, { thumbFailed: true }));
+          if (it.converting) void prepareHeic(it);
+          else thumbnail(it.id, it.file, it.mime);
         }
       }
       onRejected(rejected);
@@ -116,7 +149,7 @@ export function DropZone({ compact = false, onRejected }: { compact?: boolean; o
         Choose files
       </button>
       <p className="mt-5 text-xs text-faint">
-        JPG, PNG, WebP · up to {MAX_FILE_SIZE_MB} MB each · max {MAX_FILES} images
+        JPG, PNG, WebP, HEIC · up to {MAX_FILE_SIZE_MB} MB each · max {MAX_FILES} images
         {count > 0 ? ` · ${count} added` : ""}
       </p>
     </div>

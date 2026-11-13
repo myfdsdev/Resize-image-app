@@ -5,7 +5,8 @@ import { baseName, outputFileName } from "@/lib/filenames";
 import { MIME_EXTENSION } from "@/lib/image-processing/geometry";
 import { runJobs } from "@/lib/image-processing/runner";
 import type { EncodableMime, ProcessJob } from "@/lib/image-processing/types";
-import { buildTargets, settingsKey, useImageStore, type OutputItem } from "@/store/image-store";
+import type { BatchStats } from "@/lib/settings-schema";
+import { buildTargets, itemKey, useImageStore, type OutputItem } from "@/store/image-store";
 
 export function useBatchProcessor() {
   const process = useCallback(async (onlyIds?: string[]) => {
@@ -21,10 +22,12 @@ export function useBatchProcessor() {
       };
     }
 
-    const items = onlyIds ? store.items.filter((i) => onlyIds.includes(i.id)) : store.items;
+    const items = (onlyIds ? store.items.filter((i) => onlyIds.includes(i.id)) : store.items).filter(
+      (i) => !i.converting,
+    );
     if (items.length === 0) return { ok: false as const, error: "Add some images first" };
 
-    const key = settingsKey(settings);
+    const keys = new Map(items.map((i) => [i.id, itemKey(settings, i)]));
     const multi = targets.length > 1;
     const encode = {
       format: settings.format,
@@ -39,7 +42,14 @@ export function useBatchProcessor() {
       store.patchItem(item.id, { status: "queued", error: undefined });
       pending.set(item.id, { remaining: targets.length, outputs: [], errors: [] });
       targets.forEach((target, ti) => {
-        jobs.push({ jobId: `${item.id}::${ti}`, file: item.file, sourceMime: item.mime, target, encode });
+        jobs.push({
+          jobId: `${item.id}::${ti}`,
+          file: item.file,
+          sourceMime: item.mime,
+          target,
+          encode,
+          edits: item.edits,
+        });
       });
     }
 
@@ -51,7 +61,7 @@ export function useBatchProcessor() {
       if (entry.remaining > 0) return;
       const order = new Map(targets.map((t, i) => [t.id, i]));
       entry.outputs.sort((a, b) => (order.get(a.targetId) ?? 0) - (order.get(b.targetId) ?? 0));
-      useImageStore.getState().setOutputs(itemId, entry.outputs, key);
+      useImageStore.getState().setOutputs(itemId, entry.outputs, keys.get(itemId)!);
       useImageStore.getState().patchItem(itemId, {
         status: entry.errors.length ? "error" : "done",
         error: entry.errors.length ? entry.errors[0] : undefined,
@@ -101,7 +111,32 @@ export function useBatchProcessor() {
       });
       st.setRunning(false);
     }
-    return { ok: true as const };
+    let images = 0,
+      outputs = 0,
+      failed = 0,
+      inBytes = 0,
+      outBytes = 0;
+    for (const item of items) {
+      const entry = pending.get(item.id)!;
+      if (entry.remaining > 0) continue; // cancelled before finishing
+      images++;
+      if (entry.errors.length) failed++;
+      outputs += entry.outputs.length;
+      if (entry.outputs.length) {
+        inBytes += item.size;
+        outBytes += entry.outputs.reduce((n, o) => n + o.blob.size, 0);
+      }
+    }
+    const stats: BatchStats = {
+      images,
+      outputs,
+      failed,
+      inBytes,
+      outBytes,
+      sizes: targets.map((t) => t.label).slice(0, 60),
+      format: settings.format,
+    };
+    return { ok: true as const, stats };
   }, []);
 
   return { process };

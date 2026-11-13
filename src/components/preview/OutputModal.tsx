@@ -53,8 +53,12 @@ export function OutputModal({ id, onClose }: { id: string; onClose: () => void }
         <div className="grid gap-4 overflow-y-auto p-4 sm:grid-cols-2">
           <figure className="space-y-2">
             <div className="flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-line bg-checker">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.previewUrl} alt="Original" className="max-h-full max-w-full object-contain" />
+              {item.previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.previewUrl} alt="Original" className="max-h-full max-w-full object-contain" />
+              ) : (
+                <span className="text-xs text-faint">Preparing preview…</span>
+              )}
             </div>
             <figcaption className="text-xs text-muted">Original</figcaption>
           </figure>

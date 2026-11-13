@@ -1,5 +1,6 @@
+import { hasEdits, sourceTransform } from "./edits";
 import { computeLayout, needsBackgroundFill, resolveOutputMime } from "./geometry";
-import type { EncodableMime, ProcessJob, ProcessResult } from "./types";
+import type { EncodableMime, ImageEdits, ProcessJob, ProcessResult } from "./types";
 
 type AnyCanvas = OffscreenCanvas | HTMLCanvasElement;
 type AnyCtx = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
@@ -71,11 +72,30 @@ function stepDown(source: CanvasImageSource, sw: number, sh: number, tw: number,
   return { src, w, h };
 }
 
-/** Full pipeline for one image + one target: decode → layout → draw → encode. */
+/**
+ * Apply rotate → flip → crop in one draw. Returns the original bitmap when
+ * there are no edits, so unedited images cost no extra memory.
+ */
+export function applyEdits(
+  bitmap: ImageBitmap,
+  edits: ImageEdits | undefined,
+): { src: CanvasImageSource; width: number; height: number } {
+  if (!hasEdits(edits)) return { src: bitmap, width: bitmap.width, height: bitmap.height };
+  const t = sourceTransform(bitmap.width, bitmap.height, edits!);
+  const canvas = createCanvas(t.width, t.height);
+  const ctx = getCtx(canvas);
+  ctx.setTransform(...t.matrix);
+  ctx.drawImage(bitmap, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  return { src: canvas as CanvasImageSource, width: t.width, height: t.height };
+}
+
+/** Full pipeline for one image + one target: decode → edits → layout → draw → encode. */
 export async function processImage(job: ProcessJob, webpSupported: boolean): Promise<ProcessResult> {
   const bitmap = await decodeImage(job.file);
   try {
-    const layout = computeLayout(bitmap.width, bitmap.height, job.target);
+    const edited = applyEdits(bitmap, job.edits);
+    const layout = computeLayout(edited.width, edited.height, job.target);
     const mime = resolveOutputMime(job.encode.format, job.sourceMime, webpSupported);
 
     const canvas = createCanvas(layout.canvasWidth, layout.canvasHeight);
@@ -88,9 +108,9 @@ export async function processImage(job: ProcessJob, webpSupported: boolean): Pro
     }
 
     const { src, w, h } = stepDown(
-      bitmap,
-      bitmap.width,
-      bitmap.height,
+      edited.src,
+      edited.width,
+      edited.height,
       Math.ceil(layout.drawWidth),
       Math.ceil(layout.drawHeight),
     );

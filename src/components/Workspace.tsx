@@ -1,6 +1,7 @@
 "use client";
 
-import { Trash2, X } from "lucide-react";
+import { Crop, FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { SettingsPanel } from "@/components/editor/SettingsPanel";
 import { ExportPanel } from "@/components/export/ExportPanel";
@@ -8,16 +9,18 @@ import { ImageCard } from "@/components/image-grid/ImageCard";
 import { OutputModal } from "@/components/preview/OutputModal";
 import { Button } from "@/components/ui/Button";
 import { DropZone, type Rejection } from "@/components/upload/DropZone";
-import { settingsKey, useImageStore } from "@/store/image-store";
+import { flipEdits, rotateEdits } from "@/lib/image-processing/edits";
+import { itemKey, useImageStore } from "@/store/image-store";
 
 export function Workspace() {
   const items = useImageStore((s) => s.items);
   const selected = useImageStore((s) => s.selected);
   const selectAll = useImageStore((s) => s.selectAll);
   const removeItems = useImageStore((s) => s.removeItems);
+  const editItems = useImageStore((s) => s.editItems);
   const clearAll = useImageStore((s) => s.clearAll);
   const running = useImageStore((s) => s.running);
-  const key = useImageStore((s) => settingsKey(s.settings));
+  const settings = useImageStore((s) => s.settings);
 
   const [rejections, setRejections] = useState<Rejection[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -32,9 +35,6 @@ export function Workspace() {
     return () => clearTimeout(t);
   }, [message]);
 
-  // Free all object URLs when leaving the workspace.
-  useEffect(() => () => useImageStore.getState().clearAll(), []);
-
   const allSelected = items.length > 0 && selected.size === items.length;
 
   return (
@@ -42,7 +42,9 @@ export function Workspace() {
       <div className="min-w-0 space-y-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Bulk Image Editor</h1>
-          <p className="mt-1 text-sm text-muted">Resize, convert and compress images — right in your browser.</p>
+          <p className="mt-1 text-sm text-muted">
+            Resize, convert and compress images — right in your browser. Images stay here while you switch tools.
+          </p>
         </div>
 
         {rejections.length > 0 && (
@@ -80,12 +82,62 @@ export function Workspace() {
                 />
                 {selected.size > 0 ? `${selected.size} selected` : `${items.length} image${items.length === 1 ? "" : "s"}`}
               </label>
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {selected.size > 0 && (
-                  <Button size="sm" variant="danger" disabled={running} onClick={() => removeItems([...selected])}>
-                    <Trash2 className="h-3.5 w-3.5" /> Remove
-                  </Button>
+                  <>
+                    <div className="flex items-center rounded-lg border border-line-strong" role="group" aria-label="Edit selected">
+                      <button
+                        type="button"
+                        title="Rotate left"
+                        aria-label="Rotate selected left"
+                        disabled={running}
+                        onClick={() => editItems([...selected], (e) => rotateEdits(e, -90))}
+                        className="flex h-8 w-8 items-center justify-center text-muted hover:text-fg disabled:opacity-40"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Rotate right"
+                        aria-label="Rotate selected right"
+                        disabled={running}
+                        onClick={() => editItems([...selected], (e) => rotateEdits(e, 90))}
+                        className="flex h-8 w-8 items-center justify-center text-muted hover:text-fg disabled:opacity-40"
+                      >
+                        <RotateCw className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Flip horizontal"
+                        aria-label="Flip selected horizontally"
+                        disabled={running}
+                        onClick={() => editItems([...selected], (e) => flipEdits(e, "h"))}
+                        className="flex h-8 w-8 items-center justify-center text-muted hover:text-fg disabled:opacity-40"
+                      >
+                        <FlipHorizontal2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Flip vertical"
+                        aria-label="Flip selected vertically"
+                        disabled={running}
+                        onClick={() => editItems([...selected], (e) => flipEdits(e, "v"))}
+                        className="flex h-8 w-8 items-center justify-center text-muted hover:text-fg disabled:opacity-40"
+                      >
+                        <FlipVertical2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <Button size="sm" variant="danger" disabled={running} onClick={() => removeItems([...selected])}>
+                      <Trash2 className="h-3.5 w-3.5" /> Remove
+                    </Button>
+                  </>
                 )}
+                <Link
+                  href="/app/crop"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm text-muted hover:bg-surface-3 hover:text-fg"
+                >
+                  <Crop className="h-3.5 w-3.5" /> Crop
+                </Link>
                 <Button size="sm" variant="ghost" disabled={running} onClick={clearAll}>
                   Clear all
                 </Button>
@@ -98,7 +150,7 @@ export function Workspace() {
                   key={it.id}
                   item={it}
                   selected={selected.has(it.id)}
-                  outdated={it.status === "done" && it.processedKey !== key}
+                  outdated={it.status === "done" && it.processedKey !== itemKey(settings, it)}
                   onOpen={setOpenId}
                 />
               ))}

@@ -2,9 +2,19 @@
 
 Bulk image resizer for every platform. Resize, convert and compress images for Instagram, YouTube, Facebook, Google Ads and more. All image processing happens **in the browser**: photos are never uploaded.
 
-## Features (Phase 1)
+## Features
 
-- Drag & drop bulk upload (JPG, PNG, WebP), with validation and clear reasons for skipped files
+### Phase 2
+- Dashboard with sidebar: Overview, Bulk Editor, Crop & Rotate, Settings, Account (mobile menu drawer)
+- Crop Studio: free crop, fixed ratios (1:1, 4:5, 9:16, 16:9 …) and social presets, drag handles, exact pixel read-out, "apply to all"
+- Rotate 90° and flip horizontal/vertical, per image or for all selected images (crop follows the rotation)
+- HEIC/HEIF (iPhone) photos converted to JPEG in the browser
+- Saved default settings (account or this browser) and "Save as default" in the editor
+- Overview with batch stats for signed-in users (only numbers are stored, never images)
+
+### Phase 1
+
+- Drag & drop bulk upload (JPG, PNG, WebP, HEIC), with validation and clear reasons for skipped files
 - Thumbnail grid with select, remove and clear all
 - Resize modes: keep ratio (fit inside), fill & crop, fit & pad, stretch
 - 34 platform presets. Select several and every image is exported in every size, one ZIP folder per size.

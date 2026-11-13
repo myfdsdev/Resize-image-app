@@ -29,12 +29,31 @@ export interface EncodeOptions {
   background: string;
 }
 
+export type Rotation = 0 | 90 | 180 | 270;
+
+/** Crop area as fractions (0–1) of the rotated/flipped image, so it is resolution independent. */
+export interface CropRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Per-image edits applied before resizing: rotate → flip → crop. */
+export interface ImageEdits {
+  rotate: Rotation;
+  flipH: boolean;
+  flipV: boolean;
+  crop: CropRect | null;
+}
+
 export interface ProcessJob {
   jobId: string;
   file: Blob;
   sourceMime: string;
   target: ResizeTarget;
   encode: EncodeOptions;
+  edits?: ImageEdits;
 }
 
 export interface ProcessResult {

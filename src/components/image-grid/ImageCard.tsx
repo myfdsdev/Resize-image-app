@@ -1,9 +1,17 @@
 "use client";
 
-import { AlertCircle, Check, Loader2, Trash2 } from "lucide-react";
+import { AlertCircle, Check, Crop, Loader2, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { formatBytes } from "@/lib/filenames";
+import { hasEdits } from "@/lib/image-processing/edits";
+import type { ImageEdits } from "@/lib/image-processing/types";
 import { useImageStore, type ImageItem } from "@/store/image-store";
+
+/** Show rotation/flip on the thumbnail without regenerating it. */
+export function editTransform(e?: ImageEdits): string | undefined {
+  if (!e || (!e.rotate && !e.flipH && !e.flipV)) return undefined;
+  return `rotate(${e.rotate}deg) scale(${e.flipH ? -1 : 1}, ${e.flipV ? -1 : 1})`;
+}
 
 function StatusBadge({ item, outdated }: { item: ImageItem; outdated: boolean }) {
   switch (item.status) {
@@ -70,7 +78,17 @@ export const ImageCard = memo(function ImageCard({
       >
         {item.thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.thumbUrl} alt="" decoding="async" className="h-full w-full object-contain" />
+          <img
+            src={item.thumbUrl}
+            alt=""
+            decoding="async"
+            className="h-full w-full object-contain transition-transform"
+            style={{ transform: editTransform(item.edits) }}
+          />
+        ) : item.converting ? (
+          <span className="flex h-full w-full flex-col items-center justify-center gap-2 text-[11px] text-faint">
+            <Loader2 className="h-5 w-5 animate-spin" /> Converting HEIC…
+          </span>
         ) : item.thumbFailed ? (
           <span className="flex h-full w-full items-center justify-center text-xs text-faint">No preview</span>
         ) : (
@@ -89,8 +107,16 @@ export const ImageCard = memo(function ImageCard({
           aria-label={`Select ${item.name}`}
         />
       </label>
-      <div className="absolute right-2 top-2">
+      <div className="absolute right-2 top-2 flex flex-col items-end gap-1">
         <StatusBadge item={item} outdated={outdated} />
+        {item.edits?.crop && (
+          <span className="flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] text-muted" title="Cropped">
+            <Crop className="h-3 w-3" /> Cropped
+          </span>
+        )}
+        {hasEdits(item.edits) && !item.edits.crop && (
+          <span className="rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] text-muted">Edited</span>
+        )}
       </div>
       <button
         type="button"

@@ -18,9 +18,14 @@ describe("validateFile", () => {
     expect(validateFile(f("photo.JPEG", ""))).toEqual({ ok: true, mime: "image/jpeg" });
   });
 
-  it("rejects GIF, HEIC, other files, empty and too-large files", () => {
+  it("accepts HEIC by type or extension", () => {
+    expect(validateFile(f("IMG_1.HEIC", ""))).toEqual({ ok: true, mime: "image/heic" });
+    expect(validateFile(f("a.heif", "application/octet-stream"))).toEqual({ ok: true, mime: "image/heic" });
+    expect(validateFile(f("a", "image/heic"))).toEqual({ ok: true, mime: "image/heic" });
+  });
+
+  it("rejects GIF, other files, empty and too-large files", () => {
     expect(validateFile(f("a.gif", "image/gif")).ok).toBe(false);
-    expect(validateFile(f("a.heic", "")).ok).toBe(false);
     expect(validateFile(f("a.pdf", "application/pdf")).ok).toBe(false);
     expect(validateFile(f("a.jpg", "image/jpeg", 0)).ok).toBe(false);
     expect(validateFile(f("a.jpg", "image/jpeg", 30 * 1024 * 1024), 25).ok).toBe(false);

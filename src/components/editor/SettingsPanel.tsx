@@ -1,7 +1,9 @@
 "use client";
 
-import { ChevronDown, Link2, Link2Off, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, Link2, Link2Off, RotateCcw, Save } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useDashboard } from "@/components/dashboard/DashboardContext";
+import { saveDefaults } from "@/lib/defaults-client";
 import { detectFormatSupport } from "@/lib/format-support";
 import type { OutputFormat } from "@/lib/image-processing/types";
 import { PLATFORMS, presetsFor, ratioLabel } from "@/lib/presets";
@@ -120,6 +122,18 @@ export function SettingsPanel() {
   const firstImage = useImageStore((s) => s.items[0]);
   const [webp, setWebp] = useState(true);
   const [openPlatform, setOpenPlatform] = useState<string | null>("instagram");
+  const { loggedIn } = useDashboard();
+  const [savedDefault, setSavedDefault] = useState<"idle" | "saved" | "error">("idle");
+
+  const saveAsDefault = async () => {
+    try {
+      await saveDefaults(loggedIn, settings);
+      setSavedDefault("saved");
+    } catch {
+      setSavedDefault("error");
+    }
+    setTimeout(() => setSavedDefault("idle"), 2000);
+  };
 
   useEffect(() => {
     setWebp(detectFormatSupport().webp);
@@ -149,9 +163,20 @@ export function SettingsPanel() {
       <Section
         title="Size"
         right={
-          <button type="button" onClick={reset} className="flex items-center gap-1 text-xs text-faint hover:text-fg">
-            <RotateCcw className="h-3 w-3" /> Reset
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={saveAsDefault}
+              title={loggedIn ? "Save these settings to your account" : "Save these settings in this browser"}
+              className="flex items-center gap-1 text-xs text-faint hover:text-fg"
+            >
+              {savedDefault === "saved" ? <Check className="h-3 w-3 text-ok" /> : <Save className="h-3 w-3" />}
+              {savedDefault === "saved" ? "Saved" : savedDefault === "error" ? "Failed" : "Save as default"}
+            </button>
+            <button type="button" onClick={reset} className="flex items-center gap-1 text-xs text-faint hover:text-fg">
+              <RotateCcw className="h-3 w-3" /> Reset
+            </button>
+          </div>
         }
       >
         <Segmented

@@ -21,7 +21,7 @@ export function UserMenu({ user }: Props) {
   const initial = (user.name || user.email || "?").trim().charAt(0).toUpperCase();
   return (
     <Link
-      href="/account"
+      href="/app/account"
       className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong bg-surface-3 text-sm font-medium hover:border-faint"
       title={user.email ?? "Account"}
       aria-label="Account"
