@@ -1,6 +1,8 @@
 import { hasEdits, sourceTransform } from "./edits";
 import { computeLayout, needsBackgroundFill, resolveOutputMime } from "./geometry";
+import { searchQuality } from "./target-size";
 import type { EncodableMime, ImageEdits, ProcessJob, ProcessResult } from "./types";
+import { markWidth, placeMark, tilePositions, type WatermarkJob } from "./watermark";
 
 type AnyCanvas = OffscreenCanvas | HTMLCanvasElement;
 type AnyCtx = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
@@ -90,7 +92,87 @@ export function applyEdits(
   return { src: canvas as CanvasImageSource, width: t.width, height: t.height };
 }
 
-/** Full pipeline for one image + one target: decode → edits → layout → draw → encode. */
+/** Draw a text or logo watermark on the finished canvas. */
+async function drawWatermark(ctx: AnyCtx, W: number, H: number, wm: WatermarkJob) {
+  const mw = markWidth(W, wm.size);
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, Math.max(0.05, wm.opacity / 100));
+
+  if (wm.type === "image") {
+    if (!wm.logo) {
+      ctx.restore();
+      return;
+    }
+    const logo = await createImageBitmap(wm.logo);
+    try {
+      const mh = Math.max(1, Math.round((mw * logo.height) / logo.width));
+      const spots = wm.tile ? tilePositions(W, H, mw, mh) : [placeMark(W, H, mw, mh, wm.position, wm.margin)];
+      for (const p of spots) ctx.drawImage(logo, p.x, p.y, mw, mh);
+    } finally {
+      logo.close();
+    }
+    ctx.restore();
+    return;
+  }
+
+  const text = wm.text.trim();
+  if (!text) {
+    ctx.restore();
+    return;
+  }
+  const family = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif";
+  ctx.font = `600 100px ${family}`;
+  const w100 = Math.max(1, ctx.measureText(text).width);
+  const fontPx = Math.max(6, (100 * mw) / w100);
+  ctx.font = `600 ${fontPx}px ${family}`;
+  ctx.textBaseline = "top";
+  const mh = Math.round(fontPx * 1.15);
+  ctx.fillStyle = wm.color;
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = Math.max(1, fontPx * 0.08);
+  const spots = wm.tile ? tilePositions(W, H, mw, mh) : [placeMark(W, H, mw, mh, wm.position, wm.margin)];
+  for (const p of spots) ctx.fillText(text, p.x, p.y + fontPx * 0.05);
+  ctx.restore();
+}
+
+/**
+ * Encode, and when a target size is set (JPEG/WebP), lower the quality until
+ * it fits. If even the lowest quality is too big, shrink the image in steps.
+ */
+async function encodeOutput(
+  canvas: AnyCanvas,
+  mime: EncodableMime,
+  quality: number,
+  targetBytes: number | null | undefined,
+): Promise<{ blob: Blob; canvas: AnyCanvas; note?: string }> {
+  if (!targetBytes || mime === "image/png") {
+    return { blob: await canvasToBlob(canvas, mime, quality), canvas };
+  }
+  let current = canvas;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const found = await searchQuality((q) => canvasToBlob(current, mime, q), targetBytes, quality, 0.1);
+    if (found) {
+      const note =
+        current !== canvas ? `Reduced to ${current.width}×${current.height} to fit the target size` : undefined;
+      return { blob: found.blob, canvas: current, note };
+    }
+    const nw = Math.max(16, Math.floor(current.width * 0.85));
+    const nh = Math.max(16, Math.floor(current.height * 0.85));
+    if (nw === current.width && nh === current.height) break;
+    const smaller = createCanvas(nw, nh);
+    const sctx = getCtx(smaller);
+    if (mime === "image/jpeg") {
+      sctx.fillStyle = "#ffffff";
+      sctx.fillRect(0, 0, nw, nh);
+    }
+    sctx.drawImage(current as CanvasImageSource, 0, 0, nw, nh);
+    current = smaller;
+  }
+  const blob = await canvasToBlob(current, mime, 0.1);
+  return { blob, canvas: current, note: "Could not reach the target size; saved the smallest version" };
+}
+
+/** Full pipeline for one image + one target: decode → edits → layout → draw → watermark → encode. */
 export async function processImage(job: ProcessJob, webpSupported: boolean): Promise<ProcessResult> {
   const bitmap = await decodeImage(job.file);
   try {
@@ -116,13 +198,25 @@ export async function processImage(job: ProcessJob, webpSupported: boolean): Pro
     );
     ctx.drawImage(src, 0, 0, w, h, layout.drawX, layout.drawY, layout.drawWidth, layout.drawHeight);
 
-    const blob = await canvasToBlob(canvas, mime, job.encode.quality);
+    if (job.watermark?.enabled) {
+      await drawWatermark(ctx, layout.canvasWidth, layout.canvasHeight, job.watermark);
+    }
+
+    const encoded = await encodeOutput(canvas, mime, job.encode.quality, job.encode.targetBytes);
+    const blob = encoded.blob;
     // Some browsers silently fall back to PNG for unsupported types.
     const actualMime = (["image/jpeg", "image/png", "image/webp"].includes(blob.type)
       ? blob.type
       : mime) as EncodableMime;
 
-    return { jobId: job.jobId, blob, width: layout.canvasWidth, height: layout.canvasHeight, mime: actualMime };
+    return {
+      jobId: job.jobId,
+      blob,
+      width: encoded.canvas.width,
+      height: encoded.canvas.height,
+      mime: actualMime,
+      note: encoded.note,
+    };
   } finally {
     bitmap.close();
   }

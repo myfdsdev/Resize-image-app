@@ -143,6 +143,11 @@ export const ImageCard = memo(function ImageCard({
             <span>{formatBytes(item.size)}</span>
           )}
         </p>
+        {item.outputs.some((o) => o.note) && (
+          <p className="truncate text-[11px] text-warn" title={item.outputs.find((o) => o.note)?.note}>
+            {item.outputs.find((o) => o.note)?.note}
+          </p>
+        )}
         {item.status === "error" && item.error && (
           <p className="truncate text-[11px] text-bad" title={item.error}>
             {item.error}

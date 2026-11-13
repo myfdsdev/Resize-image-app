@@ -28,7 +28,9 @@ export function ExportPanel({
   const { loggedIn } = useDashboard();
   const [zipping, setZipping] = useState(false);
 
-  const targets = buildTargets(settings);
+  const customPresets = useImageStore((s) => s.customPresets);
+  const logo = useImageStore((s) => s.watermarkLogo);
+  const targets = buildTargets(settings, customPresets);
   const stats = useMemo(() => {
     let done = 0,
       failed = 0,
@@ -49,7 +51,7 @@ export function ExportPanel({
     return { done, failed, active, outputs, inBytes, outBytes };
   }, [items]);
 
-  const outdated = items.some((i) => i.outputs.length > 0 && i.processedKey !== itemKey(settings, i));
+  const outdated = items.some((i) => i.outputs.length > 0 && i.processedKey !== itemKey(settings, i, logo));
   const finished = stats.done + stats.failed;
   const total = running ? finished + stats.active : items.length;
   const pct = total ? Math.round((finished / total) * 100) : 0;

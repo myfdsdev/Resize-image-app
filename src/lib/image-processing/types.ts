@@ -27,6 +27,8 @@ export interface EncodeOptions {
   quality: number;
   /** CSS hex color or "transparent". JPEG always gets a solid color. */
   background: string;
+  /** Maximum output size in bytes (JPEG/WebP only). */
+  targetBytes?: number | null;
 }
 
 export type Rotation = 0 | 90 | 180 | 270;
@@ -54,6 +56,7 @@ export interface ProcessJob {
   target: ResizeTarget;
   encode: EncodeOptions;
   edits?: ImageEdits;
+  watermark?: import("./watermark").WatermarkJob;
 }
 
 export interface ProcessResult {
@@ -62,6 +65,8 @@ export interface ProcessResult {
   width: number;
   height: number;
   mime: EncodableMime;
+  /** Extra info for the user, e.g. when the target size needed a smaller image. */
+  note?: string;
 }
 
 export interface Layout {

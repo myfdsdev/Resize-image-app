@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { loadDefaults, resetDefaults, saveDefaults } from "@/lib/defaults-client";
 import { detectFormatSupport } from "@/lib/format-support";
 import { PRESET_BY_ID } from "@/lib/presets";
-import { DEFAULT_SETTINGS, useImageStore, type Settings } from "@/store/image-store";
+import { DEFAULT_SETTINGS, mergeSettings, useImageStore, type Settings } from "@/store/image-store";
 import { useDashboard } from "./DashboardContext";
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
@@ -35,7 +35,7 @@ export function DefaultsForm() {
   useEffect(() => {
     setWebp(detectFormatSupport().webp);
     loadDefaults(loggedIn).then((d) => {
-      if (d) setForm({ ...DEFAULT_SETTINGS, ...d });
+      if (d) setForm(mergeSettings(d));
       setLoading(false);
     });
   }, [loggedIn]);

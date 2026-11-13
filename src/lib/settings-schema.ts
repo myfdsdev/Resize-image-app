@@ -15,6 +15,27 @@ export const defaultsSchema = z
     quality: z.number().int().min(10).max(100),
     background: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     transparentPadding: z.boolean(),
+    targetKB: z.number().int().min(5).max(50_000).nullable(),
+    watermark: z
+      .object({
+        enabled: z.boolean(),
+        type: z.enum(["text", "image"]),
+        text: z.string().max(80),
+        color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        opacity: z.number().int().min(5).max(100),
+        size: z.number().int().min(3).max(80),
+        position: z.enum(["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]),
+        margin: z.number().min(0).max(20),
+        tile: z.boolean(),
+      })
+      .partial(),
+    rename: z
+      .object({
+        pattern: z.string().max(80),
+        start: z.number().int().min(0).max(1_000_000),
+        pad: z.number().int().min(1).max(8),
+      })
+      .partial(),
   })
   .partial();
 

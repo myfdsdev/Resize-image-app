@@ -4,6 +4,14 @@ Bulk image resizer for every platform. Resize, convert and compress images for I
 
 ## Features
 
+### Phase 3
+- Saved Presets: create your own sizes (account or this browser) and use them next to platform presets
+- History: every batch with images, files, sizes, format and size change (numbers only), with clear history
+- Watermark: text or logo, 9 positions, size, opacity, margin, or repeated across the image
+- File size limit: e.g. "max 100 KB" for JPG/WebP; quality is lowered automatically, and the image is made slightly smaller only if needed
+- Batch rename with tokens: {name}, {n}, {w}, {h}, {size}, {date}, start number and digits
+- Before/after comparison slider for every output size
+
 ### Phase 2
 - Dashboard with sidebar: Overview, Bulk Editor, Crop & Rotate, Settings, Account (mobile menu drawer)
 - Crop Studio: free crop, fixed ratios (1:1, 4:5, 9:16, 16:9 …) and social presets, drag handles, exact pixel read-out, "apply to all"

@@ -103,3 +103,84 @@ export async function getOverview(userId: string): Promise<Overview> {
     })),
   };
 }
+
+// ---------- Saved presets ----------
+
+interface PresetDoc {
+  userId: ObjectId;
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  createdAt: Date;
+}
+
+async function presetsCol() {
+  const db = await getDb();
+  const col = db.collection<PresetDoc>("presets");
+  await col.createIndex({ userId: 1, id: 1 }, { unique: true }).catch(() => undefined);
+  return col;
+}
+
+export async function listPresets(userId: string) {
+  const id = toId(userId);
+  if (!id) return [];
+  const docs = await (await presetsCol()).find({ userId: id }).sort({ createdAt: 1 }).limit(100).toArray();
+  return docs.map((d) => ({ id: d.id, name: d.name, width: d.width, height: d.height }));
+}
+
+export async function addPreset(userId: string, p: { name: string; width: number; height: number }, max: number) {
+  const id = toId(userId);
+  if (!id) throw new Error("Invalid user");
+  const col = await presetsCol();
+  if ((await col.countDocuments({ userId: id })) >= max) {
+    return { ok: false as const, error: `You can save up to ${max} presets` };
+  }
+  const preset = { id: new ObjectId().toString(), ...p };
+  await col.insertOne({ ...preset, userId: id, createdAt: new Date() });
+  return { ok: true as const, preset };
+}
+
+export async function deletePreset(userId: string, presetId: string) {
+  const id = toId(userId);
+  if (!id) return;
+  await (await presetsCol()).deleteOne({ userId: id, id: presetId });
+}
+
+// ---------- History ----------
+
+export async function getHistory(userId: string, page: number, pageSize = 20) {
+  const id = toId(userId);
+  if (!id) return { items: [] as Overview["recent"], total: 0 };
+  const { batches } = await cols();
+  const [total, docs] = await Promise.all([
+    batches.countDocuments({ userId: id }),
+    batches
+      .find({ userId: id })
+      .sort({ createdAt: -1 })
+      .skip(Math.max(0, page - 1) * pageSize)
+      .limit(pageSize)
+      .toArray(),
+  ]);
+  return {
+    total,
+    items: docs.map((b) => ({
+      id: b._id!.toString(),
+      createdAt: b.createdAt.toISOString(),
+      images: b.images,
+      outputs: b.outputs,
+      failed: b.failed,
+      inBytes: b.inBytes,
+      outBytes: b.outBytes,
+      sizes: b.sizes,
+      format: b.format,
+    })),
+  };
+}
+
+export async function clearHistory(userId: string) {
+  const id = toId(userId);
+  if (!id) return;
+  const { batches } = await cols();
+  await batches.deleteMany({ userId: id });
+}

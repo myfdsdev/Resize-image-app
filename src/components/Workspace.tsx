@@ -21,6 +21,7 @@ export function Workspace() {
   const clearAll = useImageStore((s) => s.clearAll);
   const running = useImageStore((s) => s.running);
   const settings = useImageStore((s) => s.settings);
+  const logo = useImageStore((s) => s.watermarkLogo);
 
   const [rejections, setRejections] = useState<Rejection[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -150,7 +151,7 @@ export function Workspace() {
                   key={it.id}
                   item={it}
                   selected={selected.has(it.id)}
-                  outdated={it.status === "done" && it.processedKey !== itemKey(settings, it)}
+                  outdated={it.status === "done" && it.processedKey !== itemKey(settings, it, logo)}
                   onOpen={setOpenId}
                 />
               ))}

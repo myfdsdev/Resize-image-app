@@ -34,8 +34,8 @@ const NAV: { title?: string; items: NavItem[] }[] = [
   {
     title: "Library",
     items: [
-      { href: "#", label: "Saved Presets", icon: Bookmark, soon: "Phase 3" },
-      { href: "#", label: "History", icon: History, soon: "Phase 3" },
+      { href: "/app/presets", label: "Saved Presets", icon: Bookmark },
+      { href: "/app/history", label: "History", icon: History },
     ],
   },
   {

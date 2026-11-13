@@ -2,14 +2,17 @@
 
 import { Check, ChevronDown, Link2, Link2Off, RotateCcw, Save } from "lucide-react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useDashboard } from "@/components/dashboard/DashboardContext";
+import { RenameSection, TargetSizeSection, WatermarkSection } from "./ExtraSettings";
 import { saveDefaults } from "@/lib/defaults-client";
 import { detectFormatSupport } from "@/lib/format-support";
 import type { OutputFormat } from "@/lib/image-processing/types";
+import { customPresetKey } from "@/lib/custom-presets";
 import { PLATFORMS, presetsFor, ratioLabel } from "@/lib/presets";
 import { useImageStore, type Settings } from "@/store/image-store";
 
-function Segmented<T extends string>({
+export function Segmented<T extends string>({
   value,
   options,
   onChange,
@@ -47,7 +50,7 @@ function Segmented<T extends string>({
   );
 }
 
-function Section({ title, children, right }: { title: string; children: React.ReactNode; right?: React.ReactNode }) {
+export function Section({ title, children, right }: { title: string; children: React.ReactNode; right?: React.ReactNode }) {
   return (
     <section className="space-y-3 border-b border-line px-4 py-4 last:border-b-0">
       <div className="flex items-center justify-between">
@@ -93,7 +96,7 @@ function NumberField({
   );
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
       <span className="text-muted">{label}</span>
@@ -152,6 +155,9 @@ export function SettingsPanel() {
   const hasPadding =
     (settings.sizeMode === "presets" && settings.presetFit === "contain") ||
     (settings.sizeMode === "custom" && !settings.lockRatio && settings.customFit === "contain");
+
+  const customPresets = useImageStore((s) => s.customPresets);
+  const myCount = customPresets.filter((c) => settings.presetIds.includes(customPresetKey(c.id))).length;
 
   const togglePreset = (id: string) => {
     const has = settings.presetIds.includes(id);
@@ -253,6 +259,47 @@ export function SettingsPanel() {
               {settings.presetIds.length} selected · each image is exported in every selected size
             </p>
             <div className="divide-y divide-line overflow-hidden rounded-lg border border-line">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setOpenPlatform(openPlatform === "mine" ? null : "mine")}
+                  aria-expanded={openPlatform === "mine"}
+                  className="flex w-full items-center justify-between px-3 py-2.5 text-sm hover:bg-surface-3"
+                >
+                  <span>My presets</span>
+                  <span className="flex items-center gap-2">
+                    {myCount > 0 && (
+                      <span className="rounded-full bg-white px-1.5 text-[11px] font-medium text-black">{myCount}</span>
+                    )}
+                    <ChevronDown className={`h-4 w-4 text-faint transition-transform ${openPlatform === "mine" ? "rotate-180" : ""}`} />
+                  </span>
+                </button>
+                {openPlatform === "mine" && (
+                  <ul className="space-y-0.5 bg-surface px-1.5 pb-2">
+                    {customPresets.map((c) => (
+                      <li key={c.id}>
+                        <label className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-surface-3">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 accent-white"
+                            checked={settings.presetIds.includes(customPresetKey(c.id))}
+                            onChange={() => togglePreset(customPresetKey(c.id))}
+                          />
+                          <span className="flex-1 truncate text-muted">{c.name}</span>
+                          <span className="font-mono text-[11px] text-faint">
+                            {c.width}×{c.height}
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                    <li className="px-2 pt-1">
+                      <Link href="/app/presets" className="text-xs text-faint underline-offset-4 hover:text-fg hover:underline">
+                        {customPresets.length ? "Manage my presets" : "Create your own presets"}
+                      </Link>
+                    </li>
+                  </ul>
+                )}
+              </div>
               {PLATFORMS.map((pl) => {
                 const list = presetsFor(pl.id);
                 const count = list.filter((p) => settings.presetIds.includes(p.id)).length;
@@ -378,6 +425,10 @@ export function SettingsPanel() {
               : "Used when converting transparent images to JPG, or for padding."}
         </p>
       </Section>
+
+      <TargetSizeSection />
+      <WatermarkSection />
+      <RenameSection />
     </div>
   );
 }

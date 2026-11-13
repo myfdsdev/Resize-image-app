@@ -1,9 +1,12 @@
 "use client";
 
 import { create } from "zustand";
+import { CUSTOM_PREFIX, type CustomPreset } from "@/lib/custom-presets";
 import { NO_EDITS } from "@/lib/image-processing/edits";
 import type { FitMode, ImageEdits, OutputFormat, ResizeTarget } from "@/lib/image-processing/types";
+import { DEFAULT_WATERMARK, type WatermarkSettings } from "@/lib/image-processing/watermark";
 import { PRESET_BY_ID } from "@/lib/presets";
+import { DEFAULT_RENAME, type RenameOptions } from "@/lib/rename";
 
 export type ItemStatus = "idle" | "queued" | "processing" | "done" | "error";
 
@@ -19,6 +22,9 @@ export interface OutputItem {
   fileName: string;
   /** Path inside the ZIP (a folder per size when several sizes). */
   zipPath: string;
+  note?: string;
+  /** How the image was fitted, so previews can line up before/after. */
+  fit?: FitMode;
 }
 
 export interface ImageItem {
@@ -63,6 +69,16 @@ export interface Settings {
   quality: number;
   background: string;
   transparentPadding: boolean;
+  /** Max file size in KB for JPG/WebP (null = off). */
+  targetKB: number | null;
+  watermark: WatermarkSettings;
+  rename: RenameOptions;
+}
+
+export interface WatermarkLogo {
+  blob: Blob;
+  url: string;
+  name: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -78,16 +94,39 @@ export const DEFAULT_SETTINGS: Settings = {
   quality: 85,
   background: "#ffffff",
   transparentPadding: false,
+  targetKB: null,
+  watermark: DEFAULT_WATERMARK,
+  rename: DEFAULT_RENAME,
 };
 
-export function buildTargets(s: Settings): ResizeTarget[] {
+export type PartialSettings = Omit<Partial<Settings>, "watermark" | "rename"> & {
+  watermark?: Partial<WatermarkSettings>;
+  rename?: Partial<RenameOptions>;
+};
+
+/** Saved (partial) settings merged over the built-in defaults. */
+export function mergeSettings(d: PartialSettings | null | undefined): Settings {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...(d ?? {}),
+    watermark: { ...DEFAULT_WATERMARK, ...(d?.watermark ?? {}) },
+    rename: { ...DEFAULT_RENAME, ...(d?.rename ?? {}) },
+  };
+}
+
+export function buildTargets(s: Settings, custom: CustomPreset[] = []): ResizeTarget[] {
   if (s.sizeMode === "original") {
     return [{ id: "original", label: "Original size", width: null, height: null, fit: "inside", allowUpscale: false }];
   }
   if (s.sizeMode === "presets") {
+    const customById = new Map(custom.map((c) => [CUSTOM_PREFIX + c.id, c]));
     return s.presetIds
-      .map((id) => PRESET_BY_ID[id])
-      .filter(Boolean)
+      .map((id) => {
+        const c = customById.get(id);
+        if (c) return { id: `my-${slug(c.name) || c.id}`, name: c.name, width: c.width, height: c.height };
+        return PRESET_BY_ID[id];
+      })
+      .filter((p): p is { id: string; name: string; width: number; height: number } => !!p)
       .map((p) => ({
         id: p.id,
         label: `${p.name} · ${p.width}×${p.height}`,
@@ -113,13 +152,21 @@ export function buildTargets(s: Settings): ResizeTarget[] {
   ];
 }
 
-export function settingsKey(s: Settings): string {
-  return JSON.stringify(s);
+function slug(s: string) {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+export function settingsKey(s: Settings, logo?: WatermarkLogo | null): string {
+  return JSON.stringify(s) + (s.watermark.enabled && s.watermark.type === "image" ? `|logo:${logo?.name}:${logo?.blob.size}` : "");
 }
 
 /** Fingerprint of everything that affects an item's outputs. */
-export function itemKey(s: Settings, item: Pick<ImageItem, "edits">): string {
-  return settingsKey(s) + "|" + JSON.stringify(item.edits);
+export function itemKey(s: Settings, item: Pick<ImageItem, "edits">, logo?: WatermarkLogo | null): string {
+  return settingsKey(s, logo) + "|" + JSON.stringify(item.edits);
 }
 
 interface State {
@@ -128,6 +175,10 @@ interface State {
   settings: Settings;
   running: boolean;
   cancelRequested: boolean;
+  watermarkLogo: WatermarkLogo | null;
+  customPresets: CustomPreset[];
+  setWatermarkLogo: (file: File | null) => void;
+  setCustomPresets: (list: CustomPreset[]) => void;
   addItems: (items: ImageItem[]) => void;
   removeItems: (ids: string[]) => void;
   clearAll: () => void;
@@ -135,7 +186,7 @@ interface State {
   selectAll: (on: boolean) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   /** Replace settings with saved defaults (merged over the built-in defaults). */
-  applyDefaults: (defaults: Partial<Settings>) => void;
+  applyDefaults: (defaults: PartialSettings) => void;
   /** Update edits for one or more images. */
   editItems: (ids: string[], fn: (e: ImageEdits, item: ImageItem) => ImageEdits) => void;
   resetSettings: () => void;
@@ -154,6 +205,21 @@ export const useImageStore = create<State>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   running: false,
   cancelRequested: false,
+  watermarkLogo: null,
+  customPresets: [],
+
+  setWatermarkLogo: (file) => {
+    const old = get().watermarkLogo;
+    if (old) URL.revokeObjectURL(old.url);
+    set({ watermarkLogo: file ? { blob: file, url: URL.createObjectURL(file), name: file.name } : null });
+  },
+  setCustomPresets: (list) =>
+    set((s) => {
+      // Drop selections of presets that no longer exist.
+      const valid = new Set(list.map((c) => CUSTOM_PREFIX + c.id));
+      const presetIds = s.settings.presetIds.filter((id) => !id.startsWith(CUSTOM_PREFIX) || valid.has(id));
+      return { customPresets: list, settings: { ...s.settings, presetIds } };
+    }),
 
   addItems: (items) => set((s) => ({ items: [...s.items, ...items] })),
 
@@ -195,7 +261,7 @@ export const useImageStore = create<State>((set, get) => ({
 
   updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
   resetSettings: () => set({ settings: DEFAULT_SETTINGS }),
-  applyDefaults: (defaults) => set({ settings: { ...DEFAULT_SETTINGS, ...defaults } }),
+  applyDefaults: (defaults) => set({ settings: mergeSettings(defaults) }),
   editItems: (ids, fn) => {
     const target = new Set(ids);
     set((s) => ({

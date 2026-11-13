@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect } from "react";
 import { loadDefaults } from "@/lib/defaults-client";
+import { loadPresets } from "@/lib/presets-client";
 import { useImageStore } from "@/store/image-store";
 
 interface DashboardInfo {
@@ -20,9 +21,14 @@ export function DashboardProvider({ value, children }: { value: DashboardInfo; c
   useEffect(() => {
     if (defaultsApplied) return;
     defaultsApplied = true;
-    loadDefaults(value.loggedIn).then((d) => {
-      if (d && useImageStore.getState().items.length === 0) useImageStore.getState().applyDefaults(d);
-    });
+    // Presets first, so default selections that point to them stay valid.
+    loadPresets(value.loggedIn)
+      .then((list) => useImageStore.getState().setCustomPresets(list))
+      .finally(() =>
+        loadDefaults(value.loggedIn).then((d) => {
+          if (d && useImageStore.getState().items.length === 0) useImageStore.getState().applyDefaults(d);
+        }),
+      );
   }, [value.loggedIn]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
