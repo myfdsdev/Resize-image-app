@@ -49,52 +49,51 @@ export interface Rejection {
   reason: string;
 }
 
+/** Validate files and add them to the workspace. Returns the files that were skipped. */
+export function addFilesToWorkspace(files: File[]): Rejection[] {
+  const rejected: Rejection[] = [];
+  const accepted: ImageItem[] = [];
+  let room = MAX_FILES - useImageStore.getState().items.length;
+  for (const file of files) {
+    const v = validateFile(file);
+    if (!v.ok) {
+      rejected.push({ name: file.name, reason: v.reason });
+      continue;
+    }
+    if (room <= 0) {
+      rejected.push({ name: file.name, reason: `Limit of ${MAX_FILES} images reached` });
+      continue;
+    }
+    room--;
+    const heic = v.mime === "image/heic";
+    accepted.push({
+      id: newId(),
+      file,
+      name: file.name,
+      size: file.size,
+      mime: v.mime,
+      previewUrl: heic ? "" : URL.createObjectURL(file),
+      status: "idle",
+      converting: heic,
+      edits: NO_EDITS,
+      outputs: [],
+    });
+  }
+  if (accepted.length) {
+    useImageStore.getState().addItems(accepted);
+    for (const it of accepted) {
+      if (it.converting) void prepareHeic(it);
+      else thumbnail(it.id, it.file, it.mime);
+    }
+  }
+  return rejected;
+}
+
 export function DropZone({ compact = false, onRejected }: { compact?: boolean; onRejected: (r: Rejection[]) => void }) {
-  const addItems = useImageStore((s) => s.addItems);
   const count = useImageStore((s) => s.items.length);
   const running = useImageStore((s) => s.running);
 
-  const onDrop = useCallback(
-    (files: File[]) => {
-      const rejected: Rejection[] = [];
-      const accepted: ImageItem[] = [];
-      let room = MAX_FILES - useImageStore.getState().items.length;
-      for (const file of files) {
-        const v = validateFile(file);
-        if (!v.ok) {
-          rejected.push({ name: file.name, reason: v.reason });
-          continue;
-        }
-        if (room <= 0) {
-          rejected.push({ name: file.name, reason: `Limit of ${MAX_FILES} images reached` });
-          continue;
-        }
-        room--;
-        const heic = v.mime === "image/heic";
-        accepted.push({
-          id: newId(),
-          file,
-          name: file.name,
-          size: file.size,
-          mime: v.mime,
-          previewUrl: heic ? "" : URL.createObjectURL(file),
-          status: "idle",
-          converting: heic,
-          edits: NO_EDITS,
-          outputs: [],
-        });
-      }
-      if (accepted.length) {
-        addItems(accepted);
-        for (const it of accepted) {
-          if (it.converting) void prepareHeic(it);
-          else thumbnail(it.id, it.file, it.mime);
-        }
-      }
-      onRejected(rejected);
-    },
-    [addItems, onRejected],
-  );
+  const onDrop = useCallback((files: File[]) => onRejected(addFilesToWorkspace(files)), [onRejected]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,

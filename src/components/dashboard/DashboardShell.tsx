@@ -41,8 +41,8 @@ const NAV: { title?: string; items: NavItem[] }[] = [
   {
     title: "AI",
     items: [
-      { href: "#", label: "AI Tools", icon: Sparkles, soon: "Soon" },
-      { href: "#", label: "API Key", icon: KeyRound, soon: "Soon" },
+      { href: "/app/ai", label: "AI Tools", icon: Sparkles },
+      { href: "/app/api-key", label: "API Key", icon: KeyRound },
     ],
   },
   {

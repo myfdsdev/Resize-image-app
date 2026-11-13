@@ -4,6 +4,14 @@ Bulk image resizer for every platform. Resize, convert and compress images for I
 
 ## Features
 
+### Version 2: AI tools (bring your own key)
+- API Key page: users add their own fal.ai key; stored AES-256-GCM encrypted, never sent back to the browser
+- AI Tools page: Remove background (BRIA), Magic eraser with brush mask (BRIA Eraser), AI upscale 2× (Clarity)
+- Images are downscaled before sending (2048 px, 1024 px for upscale), uploads to fal expire after 1 hour
+- Results: before/after slider, download, add to Bulk Editor, or chain into another AI tool
+- Consent checkbox before sending any image; clear error messages for bad keys or empty balance
+- `PIXFORGE_AI_MOCK=1` fake AI for local development (never active in production)
+
 ### Phase 3
 - Saved Presets: create your own sizes (account or this browser) and use them next to platform presets
 - History: every batch with images, files, sizes, format and size change (numbers only), with clear history
@@ -55,6 +63,7 @@ Open http://localhost:3000.
 | `AUTH_SECRET` | for login | Random secret. See DEPLOY.md, step 2 |
 | `MONGODB_URI` | for login | MongoDB Atlas connection string |
 | `MONGODB_DB` | no | Database name (default `pixforge`) |
+| `KEY_ENCRYPTION_SECRET` | for AI keys | Encrypts saved fal.ai keys (falls back to `AUTH_SECRET`) |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | no | Enables "Continue with Google" |
 | `NEXT_PUBLIC_SITE_URL` | no | Public site URL for SEO |
 | `NEXT_PUBLIC_MAX_FILES` | no | Max images per batch (default 100) |

@@ -45,7 +45,7 @@ const faqs = [
   },
   {
     q: "Why should I create an account?",
-    a: "An account lets you save presets and settings, and will unlock AI tools using your own API key.",
+    a: "An account lets you save presets, settings and history, and unlocks AI tools using your own fal.ai API key.",
   },
   {
     q: "Which formats are supported?",
@@ -199,22 +199,25 @@ export default function Home() {
             <div className="relative overflow-hidden rounded-3xl border border-line-strong bg-surface-2 p-8 sm:p-12">
               <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/5 blur-3xl" />
               <span className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-3 py-1 text-xs text-muted">
-                <Sparkles className="h-3.5 w-3.5" /> Coming soon
+                <Sparkles className="h-3.5 w-3.5" /> New · bring your own key
               </span>
               <h2 className="mt-5 max-w-2xl text-3xl font-semibold tracking-tight">
                 AI tools with your own API key.
               </h2>
               <p className="mt-3 max-w-2xl text-muted">
-                Background removal, magic eraser, background extend and upscaling — powered by your own fal.ai key. You
-                stay in control of cost and usage.
+                Background removal, magic eraser and 2× upscaling — powered by your own fal.ai key. You stay in control
+                of cost and usage, and PixForge charges nothing.
               </p>
               <ul className="mt-6 flex flex-wrap gap-2 text-sm">
-                {["Background remove", "Magic eraser", "Background extend", "AI upscale", "Prompt edit"].map((x) => (
+                {["Background remove", "Magic eraser", "AI upscale 2×"].map((x) => (
                   <li key={x} className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-muted">
                     <Wand2 className="h-3.5 w-3.5" /> {x}
                   </li>
                 ))}
               </ul>
+              <ButtonLink href="/app/ai" className="mt-6" variant="secondary">
+                Try AI tools
+              </ButtonLink>
             </div>
           </div>
         </section>

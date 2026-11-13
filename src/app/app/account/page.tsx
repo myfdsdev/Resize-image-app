@@ -1,5 +1,6 @@
 import { KeyRound } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession, signOut } from "@/auth";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -30,10 +31,12 @@ export default async function AccountPage() {
         <div className="flex items-center gap-2">
           <KeyRound className="h-4 w-4" />
           <h2 className="text-sm font-medium">AI API key (fal.ai)</h2>
-          <span className="rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-faint">Coming soon</span>
         </div>
         <p className="mt-2 text-sm text-muted">
-          Soon you&apos;ll be able to add your own fal.ai key here to unlock AI tools. Keys will be stored encrypted.
+          Add your own fal.ai key to unlock AI tools. Keys are stored encrypted.{" "}
+          <Link href="/app/api-key" className="text-fg underline-offset-4 hover:underline">
+            Manage API key
+          </Link>
         </p>
       </section>
 

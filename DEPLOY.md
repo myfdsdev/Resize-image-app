@@ -69,12 +69,15 @@ http://localhost:3000/signup par account banao. Agar ho gaya, to Atlas sahi conn
    | `AUTH_SECRET` | step 2 wala secret |
    | `MONGODB_URI` | step 1 wala connection string |
    | `MONGODB_DB` | `pixforge` |
+   | `KEY_ENCRYPTION_SECRET` | ek aur naya secret (step 2 wala command dobara chalao) |
    | `NEXT_PUBLIC_SITE_URL` | abhi khaali chhodo (step 6 mein bharenge) |
 
 5. **Deploy** dabao. 2–3 minute mein URL milega, jaise `https://resize-image-app.vercel.app`.
 6. Settings → Environment Variables mein `NEXT_PUBLIC_SITE_URL` = aapka live URL (aakhir mein `/` nahi) daalo → **Deployments → Redeploy**.
 
 > **Vercel Hobby (free) plan** non-commercial use ke liye hai. Abhi app free hai aur koi payment nahi hai, to ye theek hai. Aage ads ya paid plans lagaoge to Vercel Pro lena hoga, ya Netlify/Cloudflare par shift karna padega.
+
+> `KEY_ENCRYPTION_SECRET` users ki fal.ai keys ko encrypt karta hai. Ise ek baar set karke **kabhi mat badalna**. Badla to saari saved keys bekaar ho jaayengi aur users ko key dobara daalni padegi.
 
 ## Step 5: Google login (optional)
 
@@ -105,6 +108,7 @@ http://localhost:3000/signup par account banao. Agar ho gaya, to Atlas sahi conn
 - [ ] Settings save karke reload → settings wapas aati hain
 - [ ] Saved Presets banao → editor mein dikhta hai
 - [ ] History mein batch dikhta hai
+- [ ] API Key page par apni fal.ai key daalo → AI Tools mein Remove background chalao (≈ $0.02)
 - [ ] Phone par khol kar dekho (menu, upload, process)
 - [ ] `/sitemap.xml` aur `/robots.txt` sahi URL dikhate hain
 - [ ] Google Search Console mein site aur sitemap submit karo
