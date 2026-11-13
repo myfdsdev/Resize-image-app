@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/* PixForge — dark grey/black theme, white primary buttons */
+@theme inline {
+  --color-bg: #000000;
+  --color-surface: #0a0a0b;
+  --color-surface-2: #111113;
+  --color-surface-3: #18181b;
+  --color-line: #1f1f23;
+  --color-line-strong: #2e2e33;
+  --color-fg: #ededed;
+  --color-muted: #a1a1aa;
+  --color-faint: #71717a;
+  --color-ok: #4ade80;
+  --color-warn: #fbbf24;
+  --color-bad: #f87171;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: #ffffff;
+  color: #000000;
+}
+
+/* Subtle grid backdrop used in the hero */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center top, black 30%, transparent 75%);
+}
+
+.text-gradient {
+  background: linear-gradient(180deg, #ffffff 0%, #9b9ba3 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Checkerboard to show transparency in previews */
+.bg-checker {
+  background-color: #1a1a1d;
+  background-image:
+    linear-gradient(45deg, #232327 25%, transparent 25%),
+    linear-gradient(-45deg, #232327 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #232327 75%),
+    linear-gradient(-45deg, transparent 75%, #232327 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+input[type="range"] {
+  accent-color: #ffffff;
+}
+
+:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
