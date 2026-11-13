@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server";
 import { isDatabaseConfigured } from "@/lib/mongodb";
+import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 import { createUser, signupSchema } from "@/lib/users";
 
+// 5 signups per IP per 15 minutes
+const limiter = createRateLimiter(5, 15 * 60_000);
+
 export async function POST(req: Request) {
+  const rl = limiter.check(clientIp(req.headers));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
   if (!isDatabaseConfigured()) {
     return NextResponse.json({ error: "Sign up is not available yet (database not configured)." }, { status: 503 });
   }

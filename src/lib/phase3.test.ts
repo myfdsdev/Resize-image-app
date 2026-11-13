@@ -70,3 +70,20 @@ describe("target file size search", () => {
     expect(await searchQuality(fake(10_000_000), 100_000, 0.9)).toBeNull();
   });
 });
+
+describe("rate limiter", () => {
+  it("blocks after the limit and frees up after the window", async () => {
+    const { createRateLimiter } = await import("./rate-limit");
+    let t = 0;
+    const rl = createRateLimiter(3, 1000, () => t);
+    expect(rl.check("a").ok).toBe(true);
+    expect(rl.check("a").ok).toBe(true);
+    expect(rl.check("a").ok).toBe(true);
+    const blocked = rl.check("a");
+    expect(blocked.ok).toBe(false);
+    expect(blocked.retryAfterSec).toBe(1);
+    expect(rl.check("b").ok).toBe(true); // other keys unaffected
+    t = 1001;
+    expect(rl.check("a").ok).toBe(true);
+  });
+});

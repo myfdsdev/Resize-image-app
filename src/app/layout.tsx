@@ -1,25 +1,36 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SITE_DESCRIPTION, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
+  applicationName: "PixForge",
   title: {
     default: "PixForge — Bulk image resizer for every platform",
     template: "%s · PixForge",
   },
-  description:
-    "Resize, convert and compress images in bulk for Instagram, YouTube, Facebook, Google Ads and more. Runs in your browser — your photos never leave your device.",
+  description: SITE_DESCRIPTION,
+  keywords: [
+    "bulk image resizer",
+    "resize images online",
+    "image compressor",
+    "convert to webp",
+    "instagram size",
+    "youtube thumbnail size",
+    "heic to jpg",
+    "crop image",
+  ],
   openGraph: {
     title: "PixForge — Bulk image resizer for every platform",
     description: "One image in. Every size out. Private, fast and free — processed right in your browser.",
     type: "website",
+    siteName: "PixForge",
   },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

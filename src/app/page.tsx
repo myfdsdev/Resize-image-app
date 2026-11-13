@@ -11,11 +11,13 @@ import {
   Wand2,
   Zap,
 } from "lucide-react";
+import type { Metadata } from "next";
 import { FormatShowcase } from "@/components/landing/FormatShowcase";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { PLATFORMS, PRESETS, presetsFor } from "@/lib/presets";
+import { SITE_DESCRIPTION, SITE_URL } from "@/lib/site";
 
 const steps = [
   { icon: Upload, title: "Drop your images", text: "Add one photo or a hundred. JPG, PNG and WebP are supported." },
@@ -63,9 +65,23 @@ const faqs = [
   },
 ];
 
+export const metadata: Metadata = { alternates: { canonical: "/" } };
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "PixForge",
+  url: SITE_URL,
+  description: SITE_DESCRIPTION,
+  applicationCategory: "MultimediaApplication",
+  operatingSystem: "Any (web browser)",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+};
+
 export default function Home() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <SiteHeader />
       <main>
         {/* Hero */}

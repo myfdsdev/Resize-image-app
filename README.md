@@ -52,7 +52,7 @@ Open http://localhost:3000.
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `AUTH_SECRET` | for login | Random secret. Generate with `npx auth secret` |
+| `AUTH_SECRET` | for login | Random secret. See DEPLOY.md, step 2 |
 | `MONGODB_URI` | for login | MongoDB Atlas connection string |
 | `MONGODB_DB` | no | Database name (default `pixforge`) |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | no | Enables "Continue with Google" |
@@ -97,3 +97,7 @@ src/
   hooks/               batch processor
   auth.ts              Auth.js configuration
 ```
+
+## Deploy
+
+Step-by-step guide (MongoDB Atlas, Vercel, Google login, custom domain): see [DEPLOY.md](DEPLOY.md).
